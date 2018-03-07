@@ -1,0 +1,157 @@
+libc/string.h:
+include {
+size_t
+}
+hstub strlen {
+  extern "C" size_t strlen(const char* @notnull s);
+}
+hstub strnlen {
+  extern "C" size_t strnlen(const char * @notnull s, size_t maxlen);
+}
+hstub strcmp {
+  extern "C" int strcmp(const char* @notnull s1, const char* @notnull s2);
+}
+hstub strncmp {
+  extern "C" int strncmp(const char* @notnull s1, const char* @notnull s2, size_t limit);
+}
+hstub strcat {
+  extern char ?`r strcat(char ?`r s1, const char * @notnull s2);
+}
+hstub strdup {
+  extern "C" char * @notnull strdup(const char * @notnull s1);
+}
+hstub atoi {
+  extern "C" int atoi(const char * @notnull buf);
+}
+hstub strcpy {
+  extern char ?`r strcpy(char ?`r s1, const char * @notnull s2);
+}
+hstub strncpy {
+  extern char ?`r strncpy(char ?`r s1, const char * @notnull s2, size_t limit);
+}
+hstub memset {
+  extern void ?`r memset(void ?`r s, int c, size_t n);
+}
+hstub strchr {
+  extern "C" char *`r strchr(const char * @notnull `r s, int c);
+}
+hstub strrchr {
+  extern "C" char *`r strrchr(const char * @notnull `r s, int c);
+}
+hstub strpbrk {
+  extern "C" char *`r strpbrk(const char * @notnull `r s, const char * @notnull accept);
+}
+cycstub memset {
+  namespace Cmemset {
+    extern "C" void *`r memset(void *`r s, int c, size_t n);
+  }
+  static datatype exn.Failure __memset_failure =
+    Failure("strcat: source string length too small");
+  void ?`r memset(void ?`r s, int c, size_t n) {
+    if (numelts(s) < n) throw &__memset_failure;
+    Cmemset::memset(s,c,n);
+    return s;
+  }
+}
+cycstub strcat {
+  namespace Cstrcat {
+    extern "C" char *`r strcat(char *`r s1, const char *s2);
+  }
+  static datatype exn.Failure __strcat_failure =
+    Failure("strcat: source string length too small");
+  char ?`r strcat(char ?`r s1, const char * @notnull s2) {
+    if (numelts(s1) - strlen(s1) + 1 < strlen(s2))
+      throw &__strcat_failure;
+    Cstrcat::strcat(s1,s2);
+    return s1;
+  }
+}
+cycstub strcpy {
+  namespace Cstrcpy {
+    extern "C" char *`r strcpy(char *`r dest, const char *src);
+  }
+  static datatype exn.Failure __strcpy_failure =
+    Failure("strcpy: source string too small");
+  char ?`r strcpy(char ?`r s1, const char * @notnull s2) {
+    if (numelts(s1) + 1 < strlen(s2))
+      throw &__strcpy_failure;
+    Cstrcpy::strcpy(s1,s2);
+    return s1;
+  }  
+}
+cycstub strncpy {
+  namespace Cstrncpy {
+    extern "C" char *`r strncpy(char *`r dest, const char *src, size_t limit);
+  }
+  static datatype exn.Failure __strncpy_failure =
+    Failure("strcpy: limit > sizeof(dest)");
+  char ?`r strncpy(char ?`r s1, const char * @notnull s2, size_t limit) {
+    if (numelts(s1) < limit)
+      throw &__strncpy_failure;
+    Cstrncpy::strncpy(s1,s2,limit);
+    return s1;
+  }  
+}
+;
+
+libc/conio.h:
+cpp {
+  typedef int _Bool;
+}
+include {
+  bool
+  true
+  false
+  assert
+  Keycode
+}
+hstub Print {
+  extern "C" void Print(const char *fmt, ...) __attribute__ ((format (printf, 1, 2)));
+}
+hstub Print_String {
+  extern "C" int Print_String(const char* msg);
+}
+hstub Put_Char {
+  extern "C" int Put_Char(int ch);
+}
+hstub Get_Key {
+  extern "C" Keycode Get_Key(void);
+}
+hstub Set_Attr {
+  extern "C" int Set_Attr(int attr);
+}
+hstub Get_Cursor {
+  extern "C" int Get_Cursor(int * @notnull row, int * @notnull col);
+}
+hstub Put_Cursor {
+  extern "C" int Put_Cursor(int row, int col);
+}
+hstub Echo {
+  extern "C" void Echo(bool enable);
+}
+hstub Read_Line {
+  extern void Read_Line(char? buf);
+}
+hstub Get_Error_String {
+  extern "C" const char *Get_Error_String(int errno);
+}
+cycstub Read_Line {
+  namespace CRead_Line {
+    extern "C" void Read_Line(char* buf, size_t bufSize);
+  }
+  void Read_Line(char ?buf) {
+    CRead_Line::Read_Line(buf,numelts(buf));
+  }
+}
+;
+
+libc/process.h:
+hstub {
+  extern "C" int Null(void);
+  extern "C" int Exit(int exitCode);
+  extern "C" int Spawn_Program(const char* program, const char* command);
+  extern "C" int Spawn_With_Path(const char *program, const char *command, const char *path);
+  extern "C" int Wait(int pid);
+  extern "C" int Get_PID(void);
+}
+;
