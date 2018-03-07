@@ -26,6 +26,7 @@
 #include <geekos/argblock.h>
 #include <geekos/user.h>
 #include <geekos/smp.h>
+#include <geekos/idt.h>
 
 /* ----------------------------------------------------------------------
  * Variables
@@ -33,8 +34,11 @@
 
 #define DEFAULT_USER_STACK_SIZE 8192
 
-
+static void* virtSpace=0;
+extern int g_needReschedule[];
 int userDebug = 0;
+extern void Trampoline(unsigned short CodeSelector, unsigned short DataSelector, unsigned long entry);
+extern void Hardware_Shutdown();
 
 /* ----------------------------------------------------------------------
  * Private functions
@@ -195,8 +199,85 @@ int Load_User_Program(char *exeFileData, ulong_t exeFileLength
     return 0;
 }
 
+static void Printrap_Handler( struct Interrupt_State* state )
+{
+  char * msg ; //= (char *)virtSpace + state->eax;
+//  if(!*msg) 
+     msg=(char*)state->eax;
+
+  Print("%s",msg);
+
+  g_needReschedule[0] = true;
+  return;
+}
+
+int Spawn_Program(char *exeFileData, struct Exe_Format *exeFormat)
+{
+    int i;
+    ulong_t maxva = 0;
+    unsigned long virtSize;
+    unsigned short codeSelector, dataSelector;
+    struct Segment_Descriptor *desc;
+
+      /* Find maximum virtual address */
+    for (i = 0; i < exeFormat->numSegments; ++i) {
+      struct Exe_Segment *segment = &exeFormat->segmentList[i];
+      ulong_t topva = segment->startAddress + segment->sizeInMemory;
+
+      if (topva > maxva)
+        maxva = topva;
+    }
+
+    /* setup some memory space for the program */
+
+    virtSize = Round_Up_To_Page(maxva) + 4096; /* leave some slack for stack */
+    virtSpace = Malloc(virtSize);
+    memset((char *) virtSpace, '\0', virtSize);
+
+    /* Load segment data into memory */
+    for (i = 0; i < exeFormat->numSegments; ++i) {
+      struct Exe_Segment *segment = &exeFormat->segmentList[i];
+
+      memcpy(virtSpace + segment->startAddress,
+           exeFileData + segment->offsetInFile,
+           segment->lengthInFile);
+    }
+
+  /* allocate and init descriptors and selectors for code and data */
+
+  // Kernel code segment.
+    desc = Allocate_Segment_Descriptor();
+    Init_Code_Segment_Descriptor(
+                               desc,
+                               (unsigned long)virtSpace, // base address
+                               (virtSize/PAGE_SIZE)+10,  // num pages
+                               0                         // privilege level (0 == kernel)
+                               );
+    codeSelector = Selector( 0, true, Get_Descriptor_Index( desc ) );
+
+    desc = Allocate_Segment_Descriptor();
+    Init_Data_Segment_Descriptor(
+                               desc,
+                               (unsigned long)virtSpace, // base address
+                               (virtSize/PAGE_SIZE)+10,  // num pages
+                               0                         // privilege level (0 == kernel)
+                               );
+    dataSelector = Selector( 0, true, Get_Descriptor_Index( desc ) );
+
+    Install_Interrupt_Handler( 0x99, &Printrap_Handler );
+
+    Trampoline(codeSelector, dataSelector, exeFormat->entryAddr);
+    Free(exeFileData);
+    exeFileData = 0;
+
+  /* If we arrived here, everything was fine and the program exited */
+
+    return 0;
+
+}
+
+
 /*
- * Copy data from user memory into a kernel buffer.
  * Params:
  * destInKernel - address of kernel buffer
  * srcInUser - address of user buffer
@@ -259,3 +340,4 @@ void Switch_To_Address_Space(struct User_Context *userContext) {
     __asm__ __volatile__("lldt %0"::"a"(ldtSelector)
         );
 }
+

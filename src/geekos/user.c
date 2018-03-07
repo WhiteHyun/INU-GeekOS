@@ -154,6 +154,36 @@ int Spawn_Foreground(const char *program, const char *command,
     return Spawn(program, command, pThread, false);
 }
 
+extern int Spawn_Program(char *exeFileData, struct Exe_Format *exeFormat);
+extern void Hardware_Shutdown();
+
+void Spawner() {
+  const char *program = "/c/a.exe";
+  char *exeFileData = 0;
+  ulong_t exeFileLength;
+  struct Exe_Format exeFormat;
+
+  if (Read_Fully(program, (void**) &exeFileData, &exeFileLength) != 0)
+    {
+      Print("Read_Fully failed to read %s from disk\n", program);
+      goto fail;
+    }
+
+  if (Parse_ELF_Executable(exeFileData, exeFileLength, &exeFormat) != 0)
+    {
+      Print("Parse_ELF_Executable failed\n");
+      goto fail;
+    }
+  if (Spawn_Program(exeFileData, &exeFormat) != 0)
+    {
+      Print("Spawn_Program failed\n");
+      goto fail;
+    }
+
+   for(;;);
+fail:
+  Hardware_Shutdown();
+}
 
 /*
  * If the given thread has a User_Context,
