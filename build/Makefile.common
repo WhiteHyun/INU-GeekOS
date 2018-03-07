@@ -92,7 +92,7 @@ KERNEL_C_OBJS := $(KERNEL_C_SRCS:%.c=geekos/%.o)
 # KERNEL_C_OBJS := $(patsubst %.c, geekos/%.o, $(KERNEL_C_SRCS))
 
 # Kernel assembly files
-KERNEL_ASM_SRCS := lowlevel.asm 
+KERNEL_ASM_SRCS := lowlevel.asm lspawn.asm
 
 KERNEL_INCLUDES := $(wildcard $(PROJECT_ROOT)/include/geekos/*.h) $(wildcard $(PROJECT_ROOT)/include/geekos/net/*.h)
 ALL_INCLUDES := $(KERNEL_INCLUDES) $(wildcard $(PROJECT_ROOT)/include/libc/*.h)
