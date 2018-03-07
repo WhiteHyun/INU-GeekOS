@@ -69,7 +69,7 @@
 #  define ROOT_PREFIX "c"
 #endif
 
-#define INIT_PROGRAM "/" ROOT_PREFIX "/a.exe"
+#define INIT_PROGRAM "/" ROOT_PREFIX "/shell.exe"
 
 
 
@@ -202,15 +202,16 @@ static void Mount_Root_Filesystem(void) {
 
 
 
-
+void Spawner();
 
 static void Spawn_Init_Process(void) {
-    int rc;
-    struct Kernel_Thread *initProcess;
+    int rc=0;
+    struct Kernel_Thread *initProcess=0;
 
     /* Load and run a.exe, the "init" process */
     Print("Spawning init process (%s)\n", INIT_PROGRAM);
-    rc = Spawn_Foreground(INIT_PROGRAM, INIT_PROGRAM, &initProcess);
+//    rc = Spawn_Foreground(INIT_PROGRAM, INIT_PROGRAM, &initProcess);
+    initProcess=Start_Kernel_Thread(Spawner, 0, PRIORITY_NORMAL, true, "prj1");
     // Print("... spawned\n");
 
     if(rc != 0) {
