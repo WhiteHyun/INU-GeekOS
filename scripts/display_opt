@@ -1,0 +1,10 @@
+#!/bin/sh
+#
+# Script to decide if qemu should use -curses (no X display) or -sdl (valid X display)
+#
+xdpyinfo 2> /dev/null 1> /dev/null
+if [ $? -eq 0 ]; then
+    echo "-sdl"
+else
+    echo "-curses"
+fi

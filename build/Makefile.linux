@@ -1,0 +1,58 @@
+# -*- Makefile -*-
+
+# TARGET_CC_PREFIX if needed for cross-compilation.
+#  see where used in Makefile.common
+#TARGET_CC_PREFIX := i386-elf-
+
+include Makefile.common
+
+RANDOM_PORT := $(shell $(PROJECT_ROOT)/scripts/random_port)
+# HOST := $(shell hostname)
+HOST := "localhost"
+
+QEMU_BIN ?= $(shell which qemu-system-i386 || which qemu) 
+MEM ?= 512
+#QEMU ?= $(QEMU_BIN) -smp 2 -icount 4 -smpQuantum 1000 -rtc clock=vm -rtc base=2014-01-01T00:00:00 -device isa-debug-exit,iobase=0x501  -m $(MEM) -debugcon file:output.log -serial stdio 
+QEMU ?= $(QEMU_BIN) -smp 1 -icount 4 -rtc clock=vm -rtc base=2014-01-01T00:00:00 -device isa-debug-exit,iobase=0x501  -m $(MEM) -debugcon file:output.log -serial stdio 
+
+# to use COM2 on stdio, omit -serial stdio and add: 
+# -device isa-serial,iobase=0x2f8,irq=3,index=2,chardev=s2 -chardev stdio,id=s2 
+
+# to use COM1 on a telnet port, omit -serial stdio add
+# -device isa-serial,iobase=0x3f8,irq=4,index=2,chardev=s2 -chardev socket,host=localhost,port=12345,telnet=on,server,id=s2
+
+# to use COM2 on a telnet port, merge those above. 
+
+# to use disk3d on hdb add "-drive format=raw,file=disk3d.img"
+
+DISP_OPTION = $(shell $(PROJECT_ROOT)/scripts/display_opt)
+
+run: all gdbinit
+	echo $(NO_DISPLAY)
+	$(QEMU) $(DISP_OPTION) -drive file=diskc.img,index=0,format=raw $(GDB_OPT) $(ARGS)
+
+# build an ISO CD-rom image
+iso: all 
+	@-mkdir boot
+	cp diskc.img boot
+	cp fd_aug.img boot
+	mkisofs -o cd.iso -hard-disk-boot -b diskc.img	boot
+	# mkisofs -o cd.iso -b fd_aug.img	boot
+
+cdrun:	iso
+	$(QEMU) -boot d -cdrom cd.iso
+
+dbgcd : all
+	$(QEMU) -s -S -boot d -cdrom cd.iso
+
+dbgrun : all gdbinit
+	$(QEMU) $(DISP_OPTION) -no-fd-bootchk -m 3 -S $(GDB_OPT) diskc.img $(ARGS)
+
+dbg : all
+	gdb geekos/kernel.exe
+
+runbasic : all gdbinit diskc.img 
+	$(QEMU) $(MEM_OPT) diskc.img $(GDB_OPT) $(ARGS) || true
+
+
+include depend.mak

@@ -1,0 +1,15 @@
+# -*- Makefile -*-
+
+TARGET_CC := gcc -m32
+AS_GENERAL_OPTS := --32
+LD_GENERAL_OPTS := -m elf_i386
+
+# TARGET_CC_PREFIX := /usr/cross/i586-elf/bin/i586-elf-
+# TARGET_CC := /usr/cross/i586-elf/bin/i586-elf-gcc
+QEMU_VGA_OPT := -vga std
+
+# -no-kqemu not required.
+# QEMU_BIN ?= $(shell which qemu-system-i386 || which qemu) # -k en-us
+
+include Makefile.linux
+

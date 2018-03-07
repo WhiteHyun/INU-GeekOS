@@ -1,0 +1,16 @@
+Routing instructions
+
+Computer 1
+route add dest 192.168.16.0 netmask 255.255.255.0 dev eth0
+route add dest 192.168.32.0 netmask 255.255.255.0 dev eth1
+
+Computer 2
+route add dest 192.168.16.0 netmask 255.255.255.0 dev eth1
+route add dest 0.0.0.0 netmask 0.0.0.0 gw 192.168.16.1 eth0
+
+Computer 3
+route add dest 192.168.32.0 netmask 255.255.255.0 dev eth1
+route add dest 0.0.0.0 netmask 0.0.0.0 gw 192.168.32.1 eth0
+
+
+

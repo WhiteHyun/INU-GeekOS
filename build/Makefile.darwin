@@ -1,0 +1,47 @@
+# -*- Makefile -*-
+
+RANDOM_PORT := 1234
+TARGET_CC_PREFIX := i386-elf-
+TARGET_CC := $(wildcard /opt/local/bin/$(TARGET_CC_PREFIX)gcc-[3-5]*)
+ifeq ($(TARGET_CC),)
+  $(error no cross compiler found or installed: sudo port install i386-elf-gcc i386-elf-binutils)
+endif
+GENERAL_OPTS :=  -Wall $(EXTRA_C_OPTS)
+CC_GENERAL_OPTS := $(GENERAL_OPTS)  -Wall -W -Wwrite-strings -Wno-unused 
+MEM := 64
+# QEMU := /Applications/Q.app/Contents/MacOS/i386-softmmu.app/Contents/MacOS/i386-softmmu -std-vga
+QEMU := /usr/local/bin/qemu-system-i386 -smp 2 -rtc clock=vm -rtc base=2014-01-01T00:00:00 -device isa-debug-exit,iobase=0x501  -m $(MEM) -debugcon file:output.log -serial stdio
+
+# to use COM2 on stdio, omit -serial stdio and add: 
+# -device isa-serial,iobase=0x2f8,irq=3,index=2,chardev=s2 -chardev stdio,id=s2 #-soundhw sb16 
+
+# to use COM1 on a telnet port, omit -serial stdio add
+# -device isa-serial,iobase=0x3f8,irq=4,index=2,chardev=s2 -chardev socket,host=localhost,port=12345,telnet=on,server,id=s2
+
+# to use COM2 on a telnet port, merge those above. 
+
+# QEMU := /usr/local/bin/qemu-system-i386 -smp 4 -icount 4 -rtc clock=vm -rtc base=2014-01-01T00:00:00 -device isa-debug-exit,iobase=0x501  -m 64 -debugcon file:output.log -soundhw sb16 
+# QEMU := /usr/local/bin/qemu-system-i386 -m 64 -debugcon file:output.log -soundhw sb16 
+# -d int
+# QEMU := /usr/local/Cellar/qemu/2.0.0_1/bin/qemu-system-i386 -m 64 -debugcon file:output.log -soundhw sb16
+
+include Makefile.common
+
+# Added to launch qemu from Q package on Mac
+
+# for sound output to file:
+#	env QEMU_WAV_FREQUENCY=22050 QEMU_AUDIO_DRV=wav $(QEMU) -soundhw sb16 -m 10 -std-vga diskc.img
+
+run : all gdbinit diskc.img 
+	$(QEMU) $(MEM_OPT) diskc.img $(GDB_OPT) $(ARGS) || true
+
+dbgrun : all gdbinit diskc.img 
+	$(QEMU) $(MEM_OPT) -S diskc.img $(GDB_OPT) $(ARGS) || true
+
+dbg : all
+	$(TARGET_CC_PREFIX)gdb geekos/kernel.exe
+
+runbasic : all gdbinit diskc.img 
+	$(QEMU) $(MEM_OPT) diskc.img $(GDB_OPT) $(ARGS) || true
+
+include depend.mak

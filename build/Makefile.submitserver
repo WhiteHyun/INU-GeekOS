@@ -1,0 +1,25 @@
+# -*- Makefile -*-
+# arch-dependent makefile to be run on the submit server.  modify it not, 
+# as it will be overwritten.  Makefile.common is student-serviceable.
+
+# new submit server is x86_64
+TARGET_CC := gcc -m32
+AS_GENERAL_OPTS := --32
+LD_GENERAL_OPTS := -m elf_i386
+GENERAL_OPTS := -Wall $(EXTRA_C_OPTS) 
+
+include Makefile.common
+
+# CC_GENERAL_OPTS := $(GENERAL_OPTS) 
+
+run : all gfs-1024x2048.img
+	qemu --vga std -no-acpi diskc.img
+
+dbgrun : all
+	echo "target remote localhost:$(RANDOM_PORT)" > .gdbinit
+	$(QEMU) -s -S -p $(RANDOM_PORT) -std-vga -no-acpi diskc.img
+
+dbg : all
+	gdb geekos/kernel.exe
+
+include depend.mak

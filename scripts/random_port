@@ -1,0 +1,4 @@
+#!/bin/bash
+
+random=$(($RANDOM % 1000))
+echo $(($random + 10001))

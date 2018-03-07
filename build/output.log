@@ -1,0 +1,24 @@
+BSS = 4abfc
+start kern info = 90000
+Creating kernel heap: start=102000, size=1048576
+527352KB memory detected, 130394 pages in freelist, 1048576 bytes in kernel heap
+Initializing IDT...
+Init_SMP
+Initializing SMP...
+found CPU#0 with APIC id #0
+found IO APIC ID=0 at fec00000
+/Init_SMP
+apic counted down to ffffffcb
+cpu freq = 7801600
+Initializing timer...
+Initializing keyboard...
+Initializing DMA Controller...
+Initializing IDE controller...
+ide: probe found ATA drive:     ide0: cyl=40, heads=16, sectors=63
+ide: found no drive 1
+the global lock is not held.
+Registering paging device: /c/pagefile.bin on ide0 with 10240 sectors
+Mounted /c filesystem!
+Welcome to GeekOS!
+Spawning init process (/c/a.exe)
+Unimplemented feature: Parse an ELF executable image
