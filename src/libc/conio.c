@@ -219,6 +219,16 @@ void Print(const char *fmt, ...) {
     va_end(args);
 }
 
+void ELF_Print(char* msg)
+{
+
+  __asm__ __volatile__ (
+                        "int $0x99"
+                        : 
+                        : "a" (msg)     // goes in eax
+                        );
+}
+
 
 #if 0
 void dump_stack() {
