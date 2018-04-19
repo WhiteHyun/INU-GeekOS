@@ -25,14 +25,14 @@ int main(int argc __attribute__ ((unused)), char **argv
     holdsched3_sem = Open_Semaphore("holdsched3_sem", 0);
 
     for(i = 0; i < 10; i++) {
-        for(j = 0; j < 20000; j++) ;
+        for(j = 0; j < 200000; j++) ;
         Print("1");
     }
 
     V(holdsched3_sem);
 
     for(i = 0; i < 10; i++) {
-        for(j = 0; j < 20000; j++) ;
+        for(j = 0; j < 200000; j++) ;
         Print("1");
     }
 
