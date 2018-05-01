@@ -57,19 +57,21 @@ int main(int argc, char **argv) {
     int elapsed;
     int scr_sem;                /* sid of screen semaphore */
     int id1, id2, id3;          /* ID of child process */
+    int q;
 
-    if(argc == 2) {
+    if(argc == 3) {
         if(!strcmp(argv[1], "rr")) {
             policy = 0;
         } else if(!strcmp(argv[1], "mys")) {
             policy = 1;
         } else {
-            Print("usage: %s [rr|mys]\n", argv[0]);
+            Print("usage: %s [rr|mys] <quantum>\n", argv[0]);
             Exit(1);
         }
-        Set_Scheduling_Policy(policy, 20);
+        q = atoi(argv[2]);
+        Set_Scheduling_Policy(policy, q);
     } else {
-        Print("usage: %s [rr|mys]\n", argv[0]);
+        Print("usage: %s [rr|mys] <quantum>\n", argv[0]);
         Exit(1);
     }
 
