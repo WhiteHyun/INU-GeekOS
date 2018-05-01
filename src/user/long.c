@@ -21,7 +21,7 @@ int main() {
     start = Get_Time_Of_Day();
     scr_sem = Open_Semaphore("screen", 1);      /* register for screen use */
 
-    for(i = 0; i < 200; i++) {
+    for(i = 0; i < 2000; i++) {
         for(j = 0; j < 10000; j++) ;
         now = Get_Time_Of_Day();
     }
