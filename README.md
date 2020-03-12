@@ -1,1 +1,1 @@
-# inuos2018
+# GeekOS codes for OS classes of CS dept. in INU
