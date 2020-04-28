@@ -18,7 +18,7 @@
 #include <geekos/errno.h>
 #include <geekos/kassert.h>
 #include <geekos/ktypes.h>
-#include <geekos/screen.h>      /* for debug Print() statements */
+#include <geekos/screen.h> /* for debug Print() statements */
 #include <geekos/pfat.h>
 #include <geekos/malloc.h>
 #include <geekos/string.h>
@@ -39,7 +39,53 @@ int elfDebug = 0;
  *   and entry address; to be filled in
  * @return 0 if successful, < 0 on error
  */
+#define FAIL -1
+#define NEXT 0
 int Parse_ELF_Executable(char *exeFileData, ulong_t exeFileLength,
-                         struct Exe_Format *exeFormat) {
-	TODO("Parse an ELF executable image");
+                         struct Exe_Format *exeFormat)
+{
+    elfHeader *ehdr;
+    programHeader *phdr;
+    struct Exe_Segment *exeSegment;
+    short emptySegments = 0;
+
+    ehdr = (elfHeader *)exeFileData;
+    phdr = (programHeader *)(exeFileData + ehdr->phoff);
+    exeSegment = exeFormat->segmentList;
+    //Print("exeFileData = %p\nelfHeader = %p\n", exeFileData, ehdr);
+    Print("ehdr->phoff = %d\nehdr->phnum = %d\nehdr->phentsize=%d\nehdr->entry = %d\n", ehdr->phoff, ehdr->phnum, ehdr->phentsize, ehdr->entry);
+    if (exeFileData == 0)
+    {
+        Print("Error! exeFileData = 0!");
+        return FAIL;
+    }
+
+    if (ehdr->ident[0] != 0x7f || ehdr->ident[1] != 'E' || ehdr->ident[2] != 'L' || ehdr->ident[3] != 'F')
+    {
+        Print("ehdr->ident is not ELF");
+        return FAIL;
+    }
+
+    for (int i = 0; i < ehdr->phnum; i++)
+    {
+        if (ehdr->phentsize == 0) /* Processing empty segments */
+        {
+            exeSegment++; //next segment
+            phdr++;       //next program header
+            emptySegments++;
+            continue;
+        }
+        exeSegment->offsetInFile = phdr->offset;
+        exeSegment->lengthInFile = phdr->fileSize;
+        exeSegment->startAddress = phdr->vaddr;
+        exeSegment->sizeInMemory = phdr->memSize;
+        exeSegment->protFlags = phdr->flags;
+
+        exeSegment++;
+        phdr++;
+    }
+    exeFormat->numSegments = ehdr->phnum - emptySegments;
+    exeFormat->entryAddr = ehdr->entry;
+    Print("201601639 Hong Seung Hyeon\n");
+    return NEXT;
 }
