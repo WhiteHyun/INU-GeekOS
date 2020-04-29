@@ -53,7 +53,6 @@
 #include <geekos/io.h>
 #include <geekos/serial.h>
 
-
 /*
  * Define this for a self-contained boot floppy
  * with a PFAT filesystem.  (Target "fd_aug.img" in
@@ -62,16 +61,14 @@
 /*#define FD_BOOT*/
 
 #ifdef FD_BOOT
-#  define ROOT_DEVICE "fd0"
-#  define ROOT_PREFIX "a"
+#define ROOT_DEVICE "fd0"
+#define ROOT_PREFIX "a"
 #else
-#  define ROOT_DEVICE "ide0"
-#  define ROOT_PREFIX "c"
+#define ROOT_DEVICE "ide0"
+#define ROOT_PREFIX "c"
 #endif
 
 #define INIT_PROGRAM "/" ROOT_PREFIX "/shell.exe"
-
-
 
 static void Mount_Root_Filesystem(void);
 static void Spawn_Init_Process(void);
@@ -86,10 +83,11 @@ extern int checkPaging(void);
 
 /* use this style of declaration to permit not including the .c file
    so that the code doesn't consume space, without editing this file */
-void Init_GFS2() __attribute__ ((weak));
-void Init_GFS3() __attribute__ ((weak));
+void Init_GFS2() __attribute__((weak));
+void Init_GFS3() __attribute__((weak));
 
-void Hardware_Shutdown() {
+void Hardware_Shutdown()
+{
 
     // works with > 1.3 qemu with the command line: -device isa-debug-exit,iobase=0x501
     Out_Byte(0x501, 0x00);
@@ -108,7 +106,8 @@ void Hardware_Shutdown() {
              "Hardware_Shutdown() failed: QEMU likely run with incorrect options.\n");
 }
 
-void Main(struct Boot_Info *bootInfo) {
+void Main(struct Boot_Info *bootInfo)
+{
     Init_BSS();
     Init_Screen();
     Init_Mem(bootInfo);
@@ -132,12 +131,12 @@ void Main(struct Boot_Info *bootInfo) {
 
     Init_Keyboard();
     Init_DMA();
-    /* Init_Floppy(); *//* floppy initialization hangs on virtualbox */
+    /* Init_Floppy(); */ /* floppy initialization hangs on virtualbox */
     Init_IDE();
     Init_PFAT();
-    if(Init_GFS2)
+    if (Init_GFS2)
         Init_GFS2();
-    if(Init_GFS3)
+    if (Init_GFS3)
         Init_GFS3();
     Init_GOSFS();
     Init_CFS();
@@ -145,7 +144,7 @@ void Main(struct Boot_Info *bootInfo) {
     Init_Serial();
 
     Print("the global lock is %sheld.\n",
-          Kernel_Is_Locked()? "" : "not ");
+          Kernel_Is_Locked() ? "" : "not ");
 
     Release_SMP();
 
@@ -185,12 +184,13 @@ void Main(struct Boot_Info *bootInfo) {
     /* we should not get here */
 }
 
-
-
-static void Mount_Root_Filesystem(void) {
-    if(Mount(ROOT_DEVICE, ROOT_PREFIX, "pfat") != 0) {
+static void Mount_Root_Filesystem(void)
+{
+    if (Mount(ROOT_DEVICE, ROOT_PREFIX, "pfat") != 0)
+    {
         Print("Failed to mount /" ROOT_PREFIX " filesystem as pfat.\n");
-        if(Mount(ROOT_DEVICE, ROOT_PREFIX, "gfs3") != 0) {
+        if (Mount(ROOT_DEVICE, ROOT_PREFIX, "gfs3") != 0)
+        {
             Print("Failed to mount /" ROOT_PREFIX
                   " filesystem as gfs3.\n");
             return;
@@ -199,24 +199,25 @@ static void Mount_Root_Filesystem(void) {
     Print("Mounted /" ROOT_PREFIX " filesystem!\n");
 }
 
-
-
-
 void Spawner();
 
-static void Spawn_Init_Process(void) {
-    int rc=0;
-    struct Kernel_Thread *initProcess=0;
+static void Spawn_Init_Process(void)
+{
+    int rc = 0;
+    struct Kernel_Thread *initProcess = 0;
 
     /* Load and run a.exe, the "init" process */
     Print("Spawning init process (%s)\n", INIT_PROGRAM);
-//    rc = Spawn_Foreground(INIT_PROGRAM, INIT_PROGRAM, &initProcess);
-    initProcess=Start_Kernel_Thread(Spawner, 0, PRIORITY_NORMAL, true, "prj1");
+    rc = Spawn_Foreground(INIT_PROGRAM, INIT_PROGRAM, &initProcess);
+    //initProcess=Start_Kernel_Thread(Spawner, 0, PRIORITY_NORMAL, true, "prj1");
     // Print("... spawned\n");
 
-    if(rc != 0) {
+    if (rc != 0)
+    {
         Print("Failed to spawn init process: error code = %d\n", rc);
-    } else {
+    }
+    else
+    {
         /* Wait for it to exit */
         int exitCode = Join(initProcess);
         Print("Init process exited with code %d\n", exitCode);
