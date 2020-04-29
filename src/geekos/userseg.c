@@ -236,7 +236,7 @@ int Load_User_Program(char *exeFileData, ulong_t exeFileLength __attribute__((un
 
         memcpy(virtSpace + segment->startAddress,
                exeFileData + segment->offsetInFile,
-               segment->lengInFile);
+               segment->lengthInFile);
     }
 
     /* Format argument block */
