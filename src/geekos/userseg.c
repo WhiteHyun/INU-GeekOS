@@ -103,9 +103,9 @@ extern struct User_Context *Create_User_Context(ulong_t size)
         &context->ldt[0],
         (ulong_t)context->memory, //base address
         size / PAGE_SIZE,         //num pages
-        USER_PIVILEGE             //privilege level (3 == user)
+        USER_PRIVILEGE            //privilege level (3 == user)
     );
-    Init_Data_SeRgment_Descriptor(
+    Init_Data_Segment_Descriptor(
         &context->ldt[1],
         (ulong_t)context->memory, //base address
         size / PAGE_SIZE,         //num pages
@@ -191,6 +191,8 @@ int Load_User_Program(char *exeFileData, ulong_t exeFileLength __attribute__((un
                       struct Exe_Format *exeFormat, const char *command,
                       struct User_Context **pUserContext)
 {
+    if (exeFileData == 0)
+        return 0; //No such file or directory
     int i;
     ulong_t maxva = 0;
     unsigned numArgs;
@@ -234,7 +236,7 @@ int Load_User_Program(char *exeFileData, ulong_t exeFileLength __attribute__((un
     {
         struct Exe_Segment *segment = &exeFormat->segmentList[i];
 
-        memcpy(virtSpace + segment->startAddress,
+        memcpy(userContext->memory + segment->startAddress,
                exeFileData + segment->offsetInFile,
                segment->lengthInFile);
     }

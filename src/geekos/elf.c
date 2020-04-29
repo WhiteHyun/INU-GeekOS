@@ -52,17 +52,15 @@ int Parse_ELF_Executable(char *exeFileData, ulong_t exeFileLength,
     ehdr = (elfHeader *)exeFileData;
     phdr = (programHeader *)(exeFileData + ehdr->phoff);
     exeSegment = exeFormat->segmentList;
-    //Print("exeFileData = %p\nelfHeader = %p\n", exeFileData, ehdr);
-    Print("ehdr->phoff = %d\nehdr->phnum = %d\nehdr->phentsize=%d\nehdr->entry = %d\n", ehdr->phoff, ehdr->phnum, ehdr->phentsize, ehdr->entry);
-    if (exeFileData == 0)
+    if (exeFileData == 0) //No such file or directory
     {
-        Print("Error! exeFileData = 0!");
-        return FAIL;
+        //Print("Error! exeFileData = 0!\n");
+        return NEXT;
     }
 
     if (ehdr->ident[0] != 0x7f || ehdr->ident[1] != 'E' || ehdr->ident[2] != 'L' || ehdr->ident[3] != 'F')
     {
-        Print("ehdr->ident is not ELF");
+        Print("ehdr->ident is not ELF\n");
         return FAIL;
     }
 
@@ -86,6 +84,5 @@ int Parse_ELF_Executable(char *exeFileData, ulong_t exeFileLength,
     }
     exeFormat->numSegments = ehdr->phnum - emptySegments;
     exeFormat->entryAddr = ehdr->entry;
-    Print("201601639 Hong Seung Hyeon\n");
     return NEXT;
 }
