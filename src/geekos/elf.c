@@ -55,7 +55,7 @@ int Parse_ELF_Executable(char *exeFileData, ulong_t exeFileLength,
     if (exeFileData == 0) //No such file or directory
     {
         //Print("Error! exeFileData = 0!\n");
-        return NEXT;
+        return ENOTFOUND;
     }
 
     if (ehdr->ident[0] != 0x7f || ehdr->ident[1] != 'E' || ehdr->ident[2] != 'L' || ehdr->ident[3] != 'F')

@@ -192,7 +192,7 @@ int Load_User_Program(char *exeFileData, ulong_t exeFileLength __attribute__((un
                       struct User_Context **pUserContext)
 {
     if (exeFileData == 0)
-        return 0; //No such file or directory
+        return -2; //ENOTFOUND
     int i;
     ulong_t maxva = 0;
     unsigned numArgs;
