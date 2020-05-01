@@ -200,6 +200,7 @@ int Load_User_Program(char *exeFileData, ulong_t exeFileLength __attribute__((un
     ulong_t size, argBlockAddr; //argBlockAddr = argument segment address
     struct User_Context *userContext = 0;
 
+    /* Find maximum virtual address */
     for (i = 0; i < exeFormat->numSegments; i++)
     {
         struct Exe_Segment *segment = &exeFormat->segmentList[i];
@@ -232,6 +233,7 @@ int Load_User_Program(char *exeFileData, ulong_t exeFileLength __attribute__((un
      * Copying each segment of the user's program
      * to the allocated user's memory space
      */
+    /* Load segment data into memory */
     for (i = 0; i < exeFormat->numSegments; ++i)
     {
         struct Exe_Segment *segment = &exeFormat->segmentList[i];
