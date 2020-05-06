@@ -94,7 +94,7 @@ extern struct User_Context *Create_User_Context(ulong_t size)
 
     /* Set ldt selector */
     context->ldtSelector = Selector(KERNEL_PRIVILEGE, //Privilege (0 == Kernel)
-                                    true,             //ldt = true
+                                    true,             //gdt = true
                                     index             //Descriptor Index(left-13bit)
     );
 
