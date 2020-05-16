@@ -24,7 +24,7 @@ int main(int argc __attribute__((unused)), char **argv
     plength = PS(ptable, entries);
     for (i = 0; i < plength; i++)
     {
-        if (ptable[i].pid <= 0 || ptable[i].pid > entries)
+        if (ptable[i].pid == 0)
             return 0;
         //setting status code
         if (ptable[i].status == STATUS_RUNNABLE)

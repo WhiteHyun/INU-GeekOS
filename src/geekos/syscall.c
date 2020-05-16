@@ -396,8 +396,8 @@ static int Sys_PS(struct Interrupt_State *state)
             (p_list + i)->parent_pid = t_node->owner->pid;
         else
             (p_list + i)->parent_pid = 0;
-        (p_list + i)->priority = t_node->priority;
 
+        (p_list + i)->priority = t_node->priority;
         (p_list + i)->affinity = t_node->affinity;
         (p_list + i)->currCore = 0;
         (p_list + i)->totalTime = t_node->totalTime;
@@ -424,7 +424,7 @@ static int Sys_PS(struct Interrupt_State *state)
         t_node = t_node->nextAll_Thread_List; //next thread
     }
 
-    if (!Copy_To_User(state->ebx, p_list, len * sizeof(struct Process_Info)))
+    if (!Copy_To_User(state->ebx, p_list, i * sizeof(struct Process_Info)))
     {
         ret = -1;
     }
