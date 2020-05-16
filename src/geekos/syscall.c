@@ -364,7 +364,7 @@ static int Sys_PS(struct Interrupt_State *state)
     };
     struct Kernel_Thread *t_node = (&s_allThreadList)->head;
     struct Kernel_Thread *idle_thread = CPUs[Get_CPU_ID()].idleThread;
-    struct Kernel_Thread *stateIdentify[entries] = {
+    struct Kernel_Thread *runQueue[entries] = {
         0,
     };
     int i = 0, j, ret;
@@ -373,8 +373,8 @@ static int Sys_PS(struct Interrupt_State *state)
         return -1;
     while (true)
     {
-        stateIdentify[i] = Get_Next_Runnable();
-        if (stateIdentify[i] == idle_thread)
+        runQueue[i] = Get_Next_Runnable();
+        if (runQueue[i] == idle_thread)
             break;
         i++;
     }
@@ -413,9 +413,9 @@ static int Sys_PS(struct Interrupt_State *state)
         else if ((t_node->refCount == 1 && t_node->alive) || (t_node->refCount == 2 && t_node->alive))
         { // Background and Foreground
             p_list[i].status = STATUS_BLOCKED;
-            for (j = 0; stateIdentify[j] != 0; j++)
+            for (j = 0; runQueue[j] != 0; j++)
             {
-                if (p_list[i].pid == stateIdentify[j]->pid)
+                if (p_list[i].pid == runQueue[j]->pid)
                 {
                     p_list[i].status = STATUS_RUNNABLE;
                     break;
