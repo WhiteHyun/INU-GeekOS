@@ -13,19 +13,18 @@
 
 #include <conio.h>
 #include <process.h>
-#define entries 32
-
+#define entries Get_PID()
 int main(int argc __attribute__((unused)), char **argv
          __attribute__((unused)))
 {
 
     struct Process_Info ptable[entries];
     char state, core, affi;
-    int i = 0;
-    PS(ptable, entries);
-    for (i = 0; i < entries; i++)
+    int i, plength;
+    plength = PS(ptable, entries);
+    for (i = 0; i < plength; i++)
     {
-        if (ptable[i].pid == 0)
+        if (ptable[i].pid <= 0 || ptable[i].pid > entries)
             return 0;
         //setting status code
         if (ptable[i].status == STATUS_RUNNABLE)

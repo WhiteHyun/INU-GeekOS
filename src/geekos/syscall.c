@@ -354,23 +354,20 @@ extern struct Thread_Queue s_runQueue;
  *          0 if size of user memory too small
  *          N the number of entries in the table, on success
  */
-#define entries 32
-
 static int Sys_PS(struct Interrupt_State *state)
 {
+    int len = state->ecx;
     /* PROJECT_BACKGROUND_JOBS, "Sys_PS system call" */
-    struct Process_Info p_list[entries] = {
-        0,
-    };
+    struct Process_Info *p_list = (struct Process_Info *)state->ebx;
     struct Kernel_Thread *t_node = (&s_allThreadList)->head;
     struct Kernel_Thread *idle_thread = CPUs[Get_CPU_ID()].idleThread;
-    struct Kernel_Thread *runQueue[entries] = {
-        0,
-    };
+    struct Kernel_Thread **runQueue = (struct Kernel_Thread **)Malloc(sizeof(struct Kernel_Thread *) * len);
     int i = 0, j, ret;
     //if thread doesn't exist
     if (t_node == 0)
         return -1;
+    memset(runQueue, '\0', sizeof(struct Kernel_Thread *) * len);
+
     while (true)
     {
         runQueue[i] = Get_Next_Runnable();
@@ -378,56 +375,56 @@ static int Sys_PS(struct Interrupt_State *state)
             break;
         i++;
     }
-    for (i = 0; i < entries; i++)
+    for (i = 0; i < len; i++)
     {
         if (t_node == 0)
             break;
         // Setting command
         if (t_node->userContext == 0) // Kernel Thread
         {
-            memcpy(p_list[i].name, t_node->threadName, 20);
+            memcpy((p_list + i)->name, t_node->threadName, 20);
         }
         else // User Process
         {
-            memcpy(p_list[i].name, t_node->userContext->name, MAX_PROC_NAME_SZB);
+            memcpy((p_list + i)->name, t_node->userContext->name, MAX_PROC_NAME_SZB);
         }
-        p_list[i].pid = t_node->pid;
+        //Setting PID
+        (p_list + i)->pid = t_node->pid;
 
-        // Setting PPID
+        // Setting Parent - PID
         if (t_node->owner != 0)
-            p_list[i].parent_pid = t_node->owner->pid;
+            (p_list + i)->parent_pid = t_node->owner->pid;
         else
-            p_list[i].parent_pid = 0;
-        p_list[i].priority = t_node->priority;
+            (p_list + i)->parent_pid = 0;
+        (p_list + i)->priority = t_node->priority;
 
-        p_list[i].affinity = t_node->affinity;
-        p_list[i].currCore = 0;
-        p_list[i].totalTime = t_node->totalTime;
+        (p_list + i)->affinity = t_node->affinity;
+        (p_list + i)->currCore = 0;
+        (p_list + i)->totalTime = t_node->totalTime;
 
         // Setting Status
-
         if ((t_node->refCount == 0 && !(t_node->alive)) || (t_node->refCount == 1 && !(t_node->alive)))
         { //Zombie
-            p_list[i].status = STATUS_ZOMBIE;
+            (p_list + i)->status = STATUS_ZOMBIE;
         }
         else if ((t_node->refCount == 1 && t_node->alive) || (t_node->refCount == 2 && t_node->alive))
         { // Background and Foreground
-            p_list[i].status = STATUS_BLOCKED;
+            (p_list + i)->status = STATUS_BLOCKED;
             for (j = 0; runQueue[j] != 0; j++)
             {
-                if (p_list[i].pid == runQueue[j]->pid)
+                if ((p_list + i)->pid == runQueue[j]->pid)
                 {
-                    p_list[i].status = STATUS_RUNNABLE;
+                    (p_list + i)->status = STATUS_RUNNABLE;
                     break;
                 }
             }
-            if (p_list[i].pid == g_currentThreads[0]->pid)
-                p_list[i].status = STATUS_RUNNABLE;
+            if ((p_list + i)->pid == g_currentThreads[0]->pid)
+                (p_list + i)->status = STATUS_RUNNABLE;
         }
         t_node = t_node->nextAll_Thread_List; //next thread
     }
 
-    if (!Copy_To_User(state->ebx, p_list, state->ecx * sizeof(struct Process_Info)))
+    if (!Copy_To_User(state->ebx, p_list, len * sizeof(struct Process_Info)))
     {
         ret = -1;
     }
