@@ -360,21 +360,25 @@ static int Sys_PS(struct Interrupt_State *state)
     /* PROJECT_BACKGROUND_JOBS, "Sys_PS system call" */
     struct Process_Info *p_list = (struct Process_Info *)state->ebx;
     struct Kernel_Thread *t_node = (&s_allThreadList)->head;
+    struct Kernel_Thread *runQueue = (&s_runQueue)->head;
     struct Kernel_Thread *idle_thread = CPUs[Get_CPU_ID()].idleThread;
-    struct Kernel_Thread **runQueue = (struct Kernel_Thread **)Malloc(sizeof(struct Kernel_Thread *) * len);
+    //struct Kernel_Thread **runQueue = (struct Kernel_Thread **)Malloc(sizeof(struct Kernel_Thread *) * len);
     int i = 0, j, ret;
     //if thread doesn't exist
     if (t_node == 0)
         return -1;
-    memset(runQueue, '\0', sizeof(struct Kernel_Thread *) * len);
-
-    while (true)
+    // memset(runQueue, '\0', sizeof(struct Kernel_Thread *) * len);
+    for (i = 0; i < 3; i++)
     {
-        runQueue[i] = Get_Next_Runnable();
-        if (runQueue[i] == idle_thread)
-            break;
-        i++;
+        Print("[%d] Process: pid:%d threadName:%s\nuserContextName=%s\n", i, runQueue->pid, runQueue->threadName, runQueue->userContext->name);
     }
+    // while (true)
+    // {
+    //     runQueue[i] = Get_Next_Runnable();
+    //     if (runQueue[i] == idle_thread)
+    //         break;
+    //     i++;
+    // }
     for (i = 0; i < len; i++)
     {
         if (t_node == 0)
@@ -410,14 +414,14 @@ static int Sys_PS(struct Interrupt_State *state)
         else if ((t_node->refCount == 1 && t_node->alive) || (t_node->refCount == 2 && t_node->alive))
         { // Background and Foreground
             (p_list + i)->status = STATUS_BLOCKED;
-            for (j = 0; runQueue[j] != 0; j++)
-            {
-                if ((p_list + i)->pid == runQueue[j]->pid)
-                {
-                    (p_list + i)->status = STATUS_RUNNABLE;
-                    break;
-                }
-            }
+            // for (j = 0; runQueue[j] != 0; j++)
+            // {
+            //     if ((p_list + i)->pid == runQueue[j]->pid)
+            //     {
+            //         (p_list + i)->status = STATUS_RUNNABLE;
+            //         break;
+            //     }
+            // }
             if ((p_list + i)->pid == g_currentThreads[0]->pid)
                 (p_list + i)->status = STATUS_RUNNABLE;
         }
