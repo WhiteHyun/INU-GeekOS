@@ -356,29 +356,17 @@ extern struct Thread_Queue s_runQueue;
  */
 static int Sys_PS(struct Interrupt_State *state)
 {
-    int len = state->ecx;
     /* PROJECT_BACKGROUND_JOBS, "Sys_PS system call" */
+    int len = state->ecx;
+    int i = 0, j, ret;
     struct Process_Info *p_list = (struct Process_Info *)state->ebx;
     struct Kernel_Thread *t_node = (&s_allThreadList)->head;
-    struct Kernel_Thread *runQueue = (&s_runQueue)->head;
-    struct Kernel_Thread *idle_thread = CPUs[Get_CPU_ID()].idleThread;
-    //struct Kernel_Thread **runQueue = (struct Kernel_Thread **)Malloc(sizeof(struct Kernel_Thread *) * len);
-    int i = 0, j, ret;
+    struct Kernel_Thread *runQueue;
+
     //if thread doesn't exist
     if (t_node == 0)
         return -1;
-    // memset(runQueue, '\0', sizeof(struct Kernel_Thread *) * len);
-    for (i = 0; i < 3; i++)
-    {
-        Print("[%d] Process: pid:%d threadName:%s\nuserContextName=%s\n", i, runQueue->pid, runQueue->threadName, runQueue->userContext->name);
-    }
-    // while (true)
-    // {
-    //     runQueue[i] = Get_Next_Runnable();
-    //     if (runQueue[i] == idle_thread)
-    //         break;
-    //     i++;
-    // }
+
     for (i = 0; i < len; i++)
     {
         if (t_node == 0)
@@ -427,14 +415,21 @@ static int Sys_PS(struct Interrupt_State *state)
         }
         t_node = t_node->nextAll_Thread_List; //next thread
     }
-
+    ret = i;
+    for (runQueue = (&s_runQueue)->head; runQueue->pid >= 0 && runQueue->pid < len; runQueue = runQueue->nextThread_Queue)
+    {
+        for (j = 0; j < ret; j++)
+        {
+            if ((p_list + j)->pid == runQueue->pid)
+            {
+                (p_list + j)->status = STATUS_RUNNABLE;
+                break;
+            }
+        }
+    }
     if (!Copy_To_User(state->ebx, p_list, i * sizeof(struct Process_Info)))
     {
         ret = -1;
-    }
-    else
-    {
-        ret = i;
     }
     return ret;
 }
