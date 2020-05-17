@@ -22,6 +22,7 @@ int main(int argc __attribute__((unused)), char **argv
     char state, core, affi;
     int i, plength;
     plength = PS(ptable, entries);
+    Print("%3s %4s %4s %4s %3s %4s %s\n", "PID", "PPID", "PRIO", "STAT", "AFF", "TIME", "COMMAND");
     for (i = 0; i < plength; i++)
     {
         if (ptable[i].pid == 0)
