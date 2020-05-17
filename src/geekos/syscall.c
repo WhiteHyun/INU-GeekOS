@@ -410,7 +410,7 @@ static int Sys_PS(struct Interrupt_State *state)
     }
     for (runQueue = (&s_runQueue)->head; runQueue->pid >= 0 && runQueue->pid < len; runQueue = runQueue->nextThread_Queue)
     {
-        for (j = 0; j < ret; j++)
+        for (j = 0; j < i; j++)
         {
             if ((p_list + j)->pid == runQueue->pid)
             {
