@@ -401,21 +401,13 @@ static int Sys_PS(struct Interrupt_State *state)
         }
         else if ((t_node->refCount == 1 && t_node->alive) || (t_node->refCount == 2 && t_node->alive))
         { // Background and Foreground
-            (p_list + i)->status = STATUS_BLOCKED;
-            // for (j = 0; runQueue[j] != 0; j++)
-            // {
-            //     if ((p_list + i)->pid == runQueue[j]->pid)
-            //     {
-            //         (p_list + i)->status = STATUS_RUNNABLE;
-            //         break;
-            //     }
-            // }
             if ((p_list + i)->pid == g_currentThreads[0]->pid)
                 (p_list + i)->status = STATUS_RUNNABLE;
+            else
+                (p_list + i)->status = STATUS_BLOCKED;
         }
         t_node = t_node->nextAll_Thread_List; //next thread
     }
-    ret = i;
     for (runQueue = (&s_runQueue)->head; runQueue->pid >= 0 && runQueue->pid < len; runQueue = runQueue->nextThread_Queue)
     {
         for (j = 0; j < ret; j++)
@@ -431,6 +423,11 @@ static int Sys_PS(struct Interrupt_State *state)
     {
         ret = -1;
     }
+    else
+    {
+        ret = i;
+    }
+
     return ret;
 }
 
