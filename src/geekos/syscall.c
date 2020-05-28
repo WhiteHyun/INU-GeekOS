@@ -361,7 +361,7 @@ static int Sys_PS(struct Interrupt_State *state)
     int i = 0, j, ret;
     struct Process_Info *p_list = (struct Process_Info *)state->ebx;
     struct Kernel_Thread *t_node = (&s_allThreadList)->head;
-    struct Kernel_Thread *runQueue;
+    struct Kernel_Thread *runQueue = (&s_runQueue)->head;
 
     //if thread doesn't exist
     if (t_node == 0)
@@ -408,7 +408,7 @@ static int Sys_PS(struct Interrupt_State *state)
         }
         t_node = t_node->nextAll_Thread_List; //next thread
     }
-    for (runQueue = (&s_runQueue)->head; runQueue->pid >= 0 && runQueue->pid < len; runQueue = runQueue->nextThread_Queue)
+    while (runQueue->pid >= 0 && runQueue->pid < len)
     {
         for (j = 0; j < i; j++)
         {
@@ -418,6 +418,7 @@ static int Sys_PS(struct Interrupt_State *state)
                 break;
             }
         }
+        runQueue = runQueue->nextThread_Queue;
     }
     if (!Copy_To_User(state->ebx, p_list, i * sizeof(struct Process_Info)))
     {
