@@ -27,7 +27,42 @@
 #include <geekos/projects.h>
 #include <geekos/smp.h>
 
+#define MAX_LENGTH 26
+#define MAX_NUM_SEMAPHORE 20
+struct Semaphore
+{
+    bool available;
+    int count;  //semaphore value
+    char *name; //semaphore name
+    struct Thread_Queue *waitQueue;
+};
 
+struct Semaphore g_Semaphores[MAX_NUM_SEMAPHORE];
+
+static int getSemaphore()
+{
+    int ret = -1;
+    int sid = 0;
+
+    for (sid = 0; sid < MAX_NUM_SEMAPHORE; ++sid)
+    {
+        if (g_Semaphores[sid].available)
+        {
+            ret = sid;
+            break;
+        }
+    }
+    return ret;
+}
+
+void Init_Semaphores(void)
+{
+    uint_t sid = 0;
+    for (sid = 0; sid < MAX_NUM_SEMAPHORE; ++sid)
+    {
+        g_Semaphores[sid].available = true;
+    }
+}
 /*
  * Create or find a semaphore.
  * Params:
@@ -36,10 +71,47 @@
  *   state->edx - initial semaphore count
  * Returns: the global semaphore id
  */
-int Sys_Open_Semaphore(struct Interrupt_State *state) {
-    KASSERT(state);             // may be removed; just to avoid compiler warnings in distributed code.
-    TODO_P(PROJECT_SEMAPHORES, "Open_Semaphore system call");
-    return EUNSUPPORTED;
+
+int Sys_Open_Semaphore(struct Interrupt_State *state)
+{
+    int sid = 0;
+    int ret = -1;
+    bool iflag;
+    KASSERT(state); // may be removed; just to avoid compiler warnings in distributed code.
+
+    /* Open_Semaphore system call */
+    iflag = Begin_Int_Atomic();
+    //Check Semaphore
+    for (sid = 0; sid < MAX_NUM_SEMAPHORE; ++sid)
+    {
+        if (strncmp(g_Semaphores[sid].name, state->ebx, state->ecx) == 0)
+        {
+            break;
+        }
+    }
+
+    if (sid == MAX_NUM_SEMAPHORE) //Semaphore not created
+    {
+        sid = getSemaphore();
+        if (sid < 0)
+            ret = ENOMEM;
+        else
+        {
+            if ((ret = Copy_User_String(state->ebx, state->ecx, MAX_LENGTH, g_Semaphores[sid].name)) != 0)
+                return ret;
+            g_Semaphores[sid].count = state->edx;
+            g_Semaphores[sid].available = false;
+            Clear_Thread_Queue(&g_Semaphores[sid].waitQueue);
+            ret = sid;
+        }
+    }
+    else if (sid >= 0) //Already created semaphore
+    {
+        ret = sid;
+    }
+
+    End_Int_Atomic(iflag);
+    return ret;
 }
 
 /*
@@ -51,10 +123,23 @@ int Sys_Open_Semaphore(struct Interrupt_State *state) {
  *
  * Returns: 0 if successful, error code (< 0) if unsuccessful
  */
-int Sys_P(struct Interrupt_State *state) {
-    KASSERT(state);             // may be removed; just to avoid compiler warnings in distributed code.
-    TODO_P(PROJECT_SEMAPHORES, "P (semaphore acquire) system call");
-    return EUNSUPPORTED;
+int Sys_P(struct Interrupt_State *state)
+{
+    KASSERT(state); // may be removed; just to avoid compiler warnings in distributed code.
+
+    /* P (semaphore acquire) system call */
+    if (state->ebx >= 0 && state->ebx < MAX_NUM_SEMAPHORE && !g_Semaphores[state->ebx].available)
+        return EINVALID;
+    bool iflag = Begin_Int_Atomic();
+    if (g_Semaphores[state->ebx].count == 0)
+    {
+        Wait(g_Semaphores[state->ebx].waitQueue);
+        //KASSERT(g_Semaphores[state->ebx].count == 1);
+    }
+    g_Semaphores[state->ebx].count--;
+    End_Int_Atomic(iflag);
+
+    return 0;
 }
 
 /*
@@ -64,10 +149,22 @@ int Sys_P(struct Interrupt_State *state) {
  *
  * Returns: 0 if successful, error code (< 0) if unsuccessful
  */
-int Sys_V(struct Interrupt_State *state) {
-    KASSERT(state);             // may be removed; just to avoid compiler warnings in distributed code.
-    TODO_P(PROJECT_SEMAPHORES, "V (semaphore release) system call");
-    return EUNSUPPORTED;
+int Sys_V(struct Interrupt_State *state)
+{
+    KASSERT(state); // may be removed; just to avoid compiler warnings in distributed code.
+
+    /* V (semaphore release) system call */
+    if (state->ebx >= 0 && state->ebx < MAX_NUM_SEMAPHORE && !g_Semaphores[state->ebx].available)
+        return EINVALID;
+    bool iflag = Begin_Int_Atomic();
+    g_Semaphores[state->ebx].count++;
+    if (!g_Semaphores[state->ebx].count == 1)
+    {
+        Wake_Up_One(g_Semaphores[state->ebx].waitQueue);
+    }
+    End_Int_Atomic(iflag);
+
+    return 0;
 }
 
 /*
@@ -77,8 +174,16 @@ int Sys_V(struct Interrupt_State *state) {
  *
  * Returns: 0 if successful, error code (< 0) if unsuccessful
  */
-int Sys_Close_Semaphore(struct Interrupt_State *state) {
-    KASSERT(state);             // may be removed; just to avoid compiler warnings in distributed code.
-    TODO_P(PROJECT_SEMAPHORES, "Close_Semaphore system call");
-    return EUNSUPPORTED;
+int Sys_Close_Semaphore(struct Interrupt_State *state)
+{
+    KASSERT(state); // may be removed; just to avoid compiler warnings in distributed code.
+
+    /* Close_Semaphore system call */
+    if (state->ebx >= 0 && state->ebx < MAX_NUM_SEMAPHORE && !g_Semaphores[state->ebx].available)
+        return EINVALID;
+    bool iflag = Begin_Int_Atomic();
+    g_Semaphores[state->ebx].available = true;
+    Wake_Up(g_Semaphores[state->ebx].waitQueue);
+    End_Int_Atomic(iflag);
+    return 0;
 }
