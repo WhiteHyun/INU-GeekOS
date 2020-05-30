@@ -28,36 +28,20 @@
 #include <geekos/smp.h>
 
 #define MAX_LENGTH_NAME 25
-#define MAX_NUM_SEMAPHORE 20
+#define MAX_SEMAPHORE_SIZE 20
 struct Semaphore
 {
     char *name; //semaphore name
-    bool available;
-    int count; //semaphore value
+    int count;  //semaphore value
+    int user;
     struct Thread_Queue waitQueue;
 };
 
-static struct Semaphore sem_list[MAX_NUM_SEMAPHORE] = {
+static struct Semaphore *sem_list[MAX_SEMAPHORE_SIZE] = {
     0,
 };
 
-int getSemaphore()
-{
-    int ret = -1;
-    int sid = 0;
-
-    for (sid = 0; sid < MAX_NUM_SEMAPHORE; ++sid)
-    {
-        if (sem_list[sid].available)
-        {
-            ret = sid;
-            break;
-        }
-    }
-    return ret;
-}
-
-int Copy_User_String(ulong_t uaddr, ulong_t len, ulong_t maxLen, char **pStr)
+int __Copy_User_String(ulong_t uaddr, ulong_t len, ulong_t maxLen, char **pStr)
 {
     int rc = 0;
     char *str;
@@ -112,42 +96,35 @@ int Sys_Open_Semaphore(struct Interrupt_State *state)
         return EINVALID;
 
     //Check Semaphore
-    ret = Copy_User_String(state->ebx, state->ecx, MAX_LENGTH_NAME, &name);
+    ret = __Copy_User_String(state->ebx, state->ecx, MAX_LENGTH_NAME, &name);
     if (ret != 0) //error
         return ret;
 
-    if (sem_list[0].name[0] == '\0')
-        for (i = 0; i < MAX_NUM_SEMAPHORE; ++i)
-            sem_list[i].available = true;
-
-    for (sid = 0; sid < MAX_NUM_SEMAPHORE; ++sid)
+    while (sem_list[sid] != 0)
     {
-        if (strncmp(sem_list[sid].name, name, MAX_LENGTH_NAME) == 0)
+        //Find existed name
+        if (strncmp(sem_list[sid]->name, name, state->ecx) == 0)
         {
-            break;
-        }
-    }
-
-    if (sid == MAX_NUM_SEMAPHORE) //Semaphore not created
-    {
-        sid = getSemaphore();
-        if (sid < 0)
-            ret = EUNSPECIFIED;
-        else
-        {
-            sem_list[sid].name = name;
-            sem_list[sid].count = state->edx;
-            sem_list[sid].available = false;
-            Clear_Thread_Queue(&sem_list[sid].waitQueue);
+            Free(name);
             ret = sid;
+            sem_list[sid]->user++;
+            goto done;
+        }
+        sid++;
+        //No more semaphore IDs available and no semaphore with name exists
+        if (sid == MAX_SEMAPHORE_SIZE)
+        {
+            Free(name);
+            ret = ENOSPACE;
+            goto done;
         }
     }
-    else if (sid >= 0) //Already created semaphore
-    {
-        ret = sid;
-        Free(name);
-    }
-
+    sem_list[sid] = (struct Semaphore *)Malloc(sizeof(struct Semaphore));
+    sem_list[sid]->name = name;
+    sem_list[sid]->count = state->edx;
+    Clear_Thread_Queue(&sem_list[sid]->waitQueue);
+    ret = sid;
+done:
     return ret;
 }
 
@@ -165,16 +142,14 @@ int Sys_P(struct Interrupt_State *state)
     KASSERT(state); // may be removed; just to avoid compiler warnings in distributed code.
 
     /* P (semaphore acquire) system call */
-    if ((int)state->ebx < 0 || state->ebx >= MAX_NUM_SEMAPHORE)
-        return EINVALID;
-    else if (sem_list[state->ebx].available)
+    if ((int)state->ebx < 0 || state->ebx >= MAX_SEMAPHORE_SIZE || sem_list[state->ebx] == 0)
         return EINVALID;
     bool iflag = Begin_Int_Atomic();
-    sem_list[state->ebx].count--;
-    if (sem_list[state->ebx].count < 0)
+    sem_list[state->ebx]->count--;
+    if (sem_list[state->ebx]->count < 0)
     {
-        Wait(&sem_list[state->ebx].waitQueue);
-        //KASSERT(sem_list[state->ebx].count == 1);
+        Wait(&sem_list[state->ebx]->waitQueue);
+        //KASSERT(sem_list[state->ebx]->count == 1);
     }
     End_Int_Atomic(iflag);
 
@@ -193,15 +168,13 @@ int Sys_V(struct Interrupt_State *state)
     KASSERT(state); // may be removed; just to avoid compiler warnings in distributed code.
 
     /* V (semaphore release) system call */
-    if ((int)state->ebx < 0 || state->ebx >= MAX_NUM_SEMAPHORE)
-        return EINVALID;
-    else if (sem_list[state->ebx].available)
+    if ((int)state->ebx < 0 || state->ebx >= MAX_SEMAPHORE_SIZE || sem_list[state->ebx] == 0)
         return EINVALID;
     bool iflag = Begin_Int_Atomic();
-    sem_list[state->ebx].count++;
-    if (!Is_Thread_Queue_Empty(&sem_list[state->ebx].waitQueue))
+    sem_list[state->ebx]->count++;
+    if (!Is_Thread_Queue_Empty(&sem_list[state->ebx]->waitQueue))
     {
-        Wake_Up_One(&sem_list[state->ebx].waitQueue);
+        Wake_Up_One(&sem_list[state->ebx]->waitQueue);
     }
     End_Int_Atomic(iflag);
 
@@ -220,14 +193,15 @@ int Sys_Close_Semaphore(struct Interrupt_State *state)
     KASSERT(state); // may be removed; just to avoid compiler warnings in distributed code.
 
     /* Close_Semaphore system call */
-    if ((int)state->ebx < 0 || state->ebx >= MAX_NUM_SEMAPHORE)
-        return EINVALID;
-    else if (sem_list[state->ebx].available)
+    if ((int)state->ebx < 0 || state->ebx >= MAX_SEMAPHORE_SIZE || sem_list[state->ebx] == 0)
         return EINVALID;
     bool iflag = Begin_Int_Atomic();
-    sem_list[state->ebx].available = true;
-    Free(sem_list[state->ebx].name);
-    Wake_Up(&sem_list[state->ebx].waitQueue);
+    sem_list[state->ebx]->user--;
+    if (sem_list[state->ebx]->user == 0)
+    {
+        Free(sem_list[state->ebx]->name);
+        Free(sem_list[state->ebx]);
+    }
     End_Int_Atomic(iflag);
     return 0;
 }
