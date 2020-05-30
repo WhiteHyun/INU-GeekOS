@@ -122,6 +122,7 @@ int Sys_Open_Semaphore(struct Interrupt_State *state)
     sem_list[sid] = (struct Semaphore *)Malloc(sizeof(struct Semaphore));
     sem_list[sid]->name = name;
     sem_list[sid]->count = state->edx;
+    sem_list[sid]->user = 1;
     Clear_Thread_Queue(&sem_list[sid]->waitQueue);
     ret = sid;
 done:
@@ -148,6 +149,7 @@ int Sys_P(struct Interrupt_State *state)
     sem_list[state->ebx]->count--;
     if (sem_list[state->ebx]->count < 0)
     {
+        End_Int_Atomic(iflag);
         Wait(&sem_list[state->ebx]->waitQueue);
         //KASSERT(sem_list[state->ebx]->count == 1);
     }
@@ -201,6 +203,7 @@ int Sys_Close_Semaphore(struct Interrupt_State *state)
     {
         Free(sem_list[state->ebx]->name);
         Free(sem_list[state->ebx]);
+        sem_list[state->ebx] = 0;
     }
     End_Int_Atomic(iflag);
     return 0;
