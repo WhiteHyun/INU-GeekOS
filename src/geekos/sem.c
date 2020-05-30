@@ -31,22 +31,24 @@
 #define MAX_NUM_SEMAPHORE 20
 struct Semaphore
 {
-    char name[MAX_LENGTH_NAME + 1]; //semaphore name
+    char *name; //semaphore name
     bool available;
     int count; //semaphore value
     struct Thread_Queue waitQueue;
 };
 
-struct Semaphore g_Semaphores[MAX_NUM_SEMAPHORE];
+static struct Semaphore sem_list[MAX_NUM_SEMAPHORE] = {
+    0,
+};
 
-static int getSemaphore()
+int getSemaphore()
 {
     int ret = -1;
     int sid = 0;
 
     for (sid = 0; sid < MAX_NUM_SEMAPHORE; ++sid)
     {
-        if (g_Semaphores[sid].available)
+        if (sem_list[sid].available)
         {
             ret = sid;
             break;
@@ -55,15 +57,39 @@ static int getSemaphore()
     return ret;
 }
 
-void Init_Semaphores(void)
+int Copy_User_String(ulong_t uaddr, ulong_t len, ulong_t maxLen, char **pStr)
 {
-    uint_t sid = 0;
-    for (sid = 0; sid < MAX_NUM_SEMAPHORE; ++sid)
+    int rc = 0;
+    char *str;
+
+    /* Ensure that string isn't too long. */
+    if (len > maxLen)
+        return EINVALID;
+
+    /* Allocate space for the string. */
+    str = (char *)Malloc(len + 1);
+    if (str == 0)
     {
-        g_Semaphores[sid].available = true;
-        memset(g_Semaphores[sid].name, '\0', MAX_LENGTH_NAME + 1);
+        rc = ENOMEM;
+        goto done;
     }
+
+    /* Copy data from user space. */
+    if (!Copy_From_User(str, uaddr, len))
+    {
+        rc = EINVALID;
+        Free(str);
+        goto done;
+    }
+    str[len] = '\0';
+
+    /* Success! */
+    *pStr = str;
+
+done:
+    return rc;
 }
+
 /*
  * Create or find a semaphore.
  * Params:
@@ -77,17 +103,26 @@ int Sys_Open_Semaphore(struct Interrupt_State *state)
 {
     int sid = 0;
     int ret = -1;
-    bool iflag;
+    char *name = 0;
+    int i = 0;
     KASSERT(state); // may be removed; just to avoid compiler warnings in distributed code.
 
     /* Open_Semaphore system call */
-    if (state->ecx > MAX_LENGTH_NAME || state->ecx <= 0 || state->edx < 0)
+    if (state->ecx > MAX_LENGTH_NAME || (int)state->ecx <= 0 || (int)state->edx < 0)
         return EINVALID;
-    iflag = Begin_Int_Atomic();
+
     //Check Semaphore
+    ret = Copy_User_String(state->ebx, state->ecx, MAX_LENGTH_NAME, &name);
+    if (ret != 0) //error
+        return ret;
+
+    if (sem_list[0].name[0] == '\0')
+        for (i = 0; i < MAX_NUM_SEMAPHORE; ++i)
+            sem_list[i].available = true;
+
     for (sid = 0; sid < MAX_NUM_SEMAPHORE; ++sid)
     {
-        if (strncmp(g_Semaphores[sid].name, (char *)state->ebx, state->ecx) == 0)
+        if (strncmp(sem_list[sid].name, name, MAX_LENGTH_NAME) == 0)
         {
             break;
         }
@@ -100,22 +135,19 @@ int Sys_Open_Semaphore(struct Interrupt_State *state)
             ret = EUNSPECIFIED;
         else
         {
-            strncpy(g_Semaphores[sid].name, (char *)state->ebx, MAX_NUM_SEMAPHORE);
-            //Copy_User_String(state->ebx, state->ecx, MAX_LENGTH_NAME, &g_Semaphores[sid].name);
-            if (ret != 0)
-                return ret;
-            g_Semaphores[sid].count = state->edx;
-            g_Semaphores[sid].available = false;
-            Clear_Thread_Queue(&g_Semaphores[sid].waitQueue);
+            sem_list[sid].name = name;
+            sem_list[sid].count = state->edx;
+            sem_list[sid].available = false;
+            Clear_Thread_Queue(&sem_list[sid].waitQueue);
             ret = sid;
         }
     }
     else if (sid >= 0) //Already created semaphore
     {
         ret = sid;
+        Free(name);
     }
 
-    End_Int_Atomic(iflag);
     return ret;
 }
 
@@ -133,14 +165,16 @@ int Sys_P(struct Interrupt_State *state)
     KASSERT(state); // may be removed; just to avoid compiler warnings in distributed code.
 
     /* P (semaphore acquire) system call */
-    if ((int)state->ebx >= 0 && state->ebx < MAX_NUM_SEMAPHORE && !g_Semaphores[state->ebx].available)
+    if ((int)state->ebx < 0 || state->ebx >= MAX_NUM_SEMAPHORE)
+        return EINVALID;
+    else if (sem_list[state->ebx].available)
         return EINVALID;
     bool iflag = Begin_Int_Atomic();
-    g_Semaphores[state->ebx].count--;
-    if (g_Semaphores[state->ebx].count < 0)
+    sem_list[state->ebx].count--;
+    if (sem_list[state->ebx].count < 0)
     {
-        Wait(&g_Semaphores[state->ebx].waitQueue);
-        //KASSERT(g_Semaphores[state->ebx].count == 1);
+        Wait(&sem_list[state->ebx].waitQueue);
+        //KASSERT(sem_list[state->ebx].count == 1);
     }
     End_Int_Atomic(iflag);
 
@@ -159,13 +193,15 @@ int Sys_V(struct Interrupt_State *state)
     KASSERT(state); // may be removed; just to avoid compiler warnings in distributed code.
 
     /* V (semaphore release) system call */
-    if ((int)state->ebx >= 0 && state->ebx < MAX_NUM_SEMAPHORE && !g_Semaphores[state->ebx].available)
+    if ((int)state->ebx < 0 || state->ebx >= MAX_NUM_SEMAPHORE)
+        return EINVALID;
+    else if (sem_list[state->ebx].available)
         return EINVALID;
     bool iflag = Begin_Int_Atomic();
-    g_Semaphores[state->ebx].count++;
-    if (!(g_Semaphores[state->ebx].count == 1))
+    sem_list[state->ebx].count++;
+    if (!Is_Thread_Queue_Empty(&sem_list[state->ebx].waitQueue))
     {
-        Wake_Up_One(&g_Semaphores[state->ebx].waitQueue);
+        Wake_Up_One(&sem_list[state->ebx].waitQueue);
     }
     End_Int_Atomic(iflag);
 
@@ -184,11 +220,14 @@ int Sys_Close_Semaphore(struct Interrupt_State *state)
     KASSERT(state); // may be removed; just to avoid compiler warnings in distributed code.
 
     /* Close_Semaphore system call */
-    if ((int)state->ebx >= 0 && state->ebx < MAX_NUM_SEMAPHORE && !g_Semaphores[state->ebx].available)
+    if ((int)state->ebx < 0 || state->ebx >= MAX_NUM_SEMAPHORE)
+        return EINVALID;
+    else if (sem_list[state->ebx].available)
         return EINVALID;
     bool iflag = Begin_Int_Atomic();
-    g_Semaphores[state->ebx].available = true;
-    Wake_Up(&g_Semaphores[state->ebx].waitQueue);
+    sem_list[state->ebx].available = true;
+    Free(sem_list[state->ebx].name);
+    Wake_Up(&sem_list[state->ebx].waitQueue);
     End_Int_Atomic(iflag);
     return 0;
 }
