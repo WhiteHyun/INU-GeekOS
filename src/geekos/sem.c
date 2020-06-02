@@ -37,7 +37,7 @@ struct Semaphore
     struct Thread_Queue waitQueue;
 };
 
-static struct Semaphore *sem_list[MAX_SEMAPHORE_SIZE] = {
+static struct Semaphore sem_list[MAX_SEMAPHORE_SIZE] = {
     0,
 };
 
@@ -82,7 +82,6 @@ done:
  *   state->edx - initial semaphore count
  * Returns: the global semaphore id
  */
-
 int Sys_Open_Semaphore(struct Interrupt_State *state)
 {
     int sid = 0;
@@ -100,14 +99,14 @@ int Sys_Open_Semaphore(struct Interrupt_State *state)
     if (ret != 0) //error
         return ret;
 
-    while (sem_list[sid] != 0)
+    while (sem_list[sid].name != 0)
     {
         //Find existed name
-        if (strncmp(sem_list[sid]->name, name, state->ecx) == 0)
+        if (strncmp(sem_list[sid].name, name, state->ecx) == 0)
         {
             Free(name);
             ret = sid;
-            sem_list[sid]->user++;
+            sem_list[sid].user++;
             goto done;
         }
         sid++;
@@ -119,11 +118,11 @@ int Sys_Open_Semaphore(struct Interrupt_State *state)
             goto done;
         }
     }
-    sem_list[sid] = (struct Semaphore *)Malloc(sizeof(struct Semaphore));
-    sem_list[sid]->name = name;
-    sem_list[sid]->count = state->edx;
-    sem_list[sid]->user = 1;
-    Clear_Thread_Queue(&sem_list[sid]->waitQueue);
+    //sem_list[sid] = (struct Semaphore *)Malloc(sizeof(struct Semaphore));
+    sem_list[sid].name = name;
+    sem_list[sid].count = state->edx;
+    sem_list[sid].user = 1;
+    Clear_Thread_Queue(&sem_list[sid].waitQueue);
     ret = sid;
 done:
     return ret;
@@ -143,15 +142,15 @@ int Sys_P(struct Interrupt_State *state)
     KASSERT(state); // may be removed; just to avoid compiler warnings in distributed code.
 
     /* P (semaphore acquire) system call */
-    if ((int)state->ebx < 0 || state->ebx >= MAX_SEMAPHORE_SIZE || sem_list[state->ebx] == 0)
+    if ((int)state->ebx < 0 || state->ebx >= MAX_SEMAPHORE_SIZE || sem_list[state->ebx].name == 0)
         return EINVALID;
     bool iflag = Begin_Int_Atomic();
-    sem_list[state->ebx]->count--;
-    if (sem_list[state->ebx]->count < 0)
+    sem_list[state->ebx].count--;
+    if (sem_list[state->ebx].count < 0)
     {
         End_Int_Atomic(iflag);
-        Wait(&sem_list[state->ebx]->waitQueue);
-        //KASSERT(sem_list[state->ebx]->count == 1);
+        Wait(&sem_list[state->ebx].waitQueue);
+        //KASSERT(sem_list[state->ebx].count == 1);
     }
     End_Int_Atomic(iflag);
 
@@ -170,13 +169,13 @@ int Sys_V(struct Interrupt_State *state)
     KASSERT(state); // may be removed; just to avoid compiler warnings in distributed code.
 
     /* V (semaphore release) system call */
-    if ((int)state->ebx < 0 || state->ebx >= MAX_SEMAPHORE_SIZE || sem_list[state->ebx] == 0)
+    if ((int)state->ebx < 0 || state->ebx >= MAX_SEMAPHORE_SIZE || sem_list[state->ebx].name == 0)
         return EINVALID;
     bool iflag = Begin_Int_Atomic();
-    sem_list[state->ebx]->count++;
-    if (!Is_Thread_Queue_Empty(&sem_list[state->ebx]->waitQueue))
+    sem_list[state->ebx].count++;
+    if (!Is_Thread_Queue_Empty(&sem_list[state->ebx].waitQueue))
     {
-        Wake_Up_One(&sem_list[state->ebx]->waitQueue);
+        Wake_Up_One(&sem_list[state->ebx].waitQueue);
     }
     End_Int_Atomic(iflag);
 
@@ -195,15 +194,14 @@ int Sys_Close_Semaphore(struct Interrupt_State *state)
     KASSERT(state); // may be removed; just to avoid compiler warnings in distributed code.
 
     /* Close_Semaphore system call */
-    if ((int)state->ebx < 0 || state->ebx >= MAX_SEMAPHORE_SIZE || sem_list[state->ebx] == 0)
+    if ((int)state->ebx < 0 || state->ebx >= MAX_SEMAPHORE_SIZE || sem_list[state->ebx].name == 0)
         return EINVALID;
     bool iflag = Begin_Int_Atomic();
-    sem_list[state->ebx]->user--;
-    if (sem_list[state->ebx]->user == 0)
+    sem_list[state->ebx].user--;
+    if (sem_list[state->ebx].user == 0)
     {
-        Free(sem_list[state->ebx]->name);
-        Free(sem_list[state->ebx]);
-        sem_list[state->ebx] = 0;
+        Free(sem_list[state->ebx].name);
+        sem_list[state->ebx].name = 0;
     }
     End_Int_Atomic(iflag);
     return 0;
