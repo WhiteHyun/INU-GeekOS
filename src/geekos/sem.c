@@ -41,38 +41,7 @@ static struct Semaphore sem_list[MAX_SEMAPHORE_SIZE] = {
     0,
 };
 
-int __Copy_User_String(ulong_t uaddr, ulong_t len, ulong_t maxLen, char **pStr)
-{
-    int rc = 0;
-    char *str;
-
-    /* Ensure that string isn't too long. */
-    if (len > maxLen)
-        return EINVALID;
-
-    /* Allocate space for the string. */
-    str = (char *)Malloc(len + 1);
-    if (str == 0)
-    {
-        rc = ENOMEM;
-        goto done;
-    }
-
-    /* Copy data from user space. */
-    if (!Copy_From_User(str, uaddr, len))
-    {
-        rc = EINVALID;
-        Free(str);
-        goto done;
-    }
-    str[len] = '\0';
-
-    /* Success! */
-    *pStr = str;
-
-done:
-    return rc;
-}
+extern int Copy_User_String(ulong_t uaddr, ulong_t len, ulong_t maxLen, char **pStr);
 
 /*
  * Create or find a semaphore.
@@ -95,7 +64,7 @@ int Sys_Open_Semaphore(struct Interrupt_State *state)
         return EINVALID;
 
     //Check Semaphore
-    ret = __Copy_User_String(state->ebx, state->ecx, MAX_LENGTH_NAME, &name);
+    ret = Copy_User_String(state->ebx, state->ecx, MAX_LENGTH_NAME, &name);
     if (ret != 0) //error
         return ret;
 
